@@ -9,7 +9,7 @@ st.set_page_config(page_title="BOT V36 PRO MAX 🔥", layout="wide")
 st.title("🔥 V36 SYSTEM BEHAVIOR AI")
 st.markdown("---")
 
-# ===== LOGIC PHÂN TÍCH =====
+# ===== LOGIC PHÂN TÍCH CHUẨN =====
 def get_stats(day_so, key_func):
     c2, c3, cl = 0, 0, 0
     for _, nhom in groupby(day_so, key=key_func):
@@ -45,7 +45,7 @@ col_input, col_btn = st.columns([1, 1])
 
 with col_input:
     range_input = st.text_input("Chọn đoạn dữ liệu (vd: 0-1000)", placeholder="Để trống nếu lấy hết")
-    moc_soi_input = st.number_input("Số lượng soi gần nhất (để tính lợi nhuận riêng)", value=250)
+    moc_soi_input = st.number_input("Số lượng soi gần nhất", value=250)
 
 with col_btn:
     st.write("Thao tác dữ liệu:")
@@ -75,7 +75,7 @@ if day_so_clean:
     st.markdown("---")
 
 if st.button("🚀 BẮT ĐẦU PHÂN TÍCH", type="primary", use_container_width=True):
-    # 1. Cắt đoạn dữ liệu theo Range (n-m)
+    # --- PHẦN 1: XỬ LÝ ĐOẠN RANGE (N-M) ---
     day_so_range = day_so_clean
     label_range = "FULL DATA"
     if range_input and "-" in range_input:
@@ -85,59 +85,66 @@ if st.button("🚀 BẮT ĐẦU PHÂN TÍCH", type="primary", use_container_widt
             label_range = f"ĐOẠN {range_input}"
         except: pass
     
-    # 2. Lấy đoạn soi gần nhất (Mốc soi)
+    # --- PHẦN 2: XỬ LÝ ĐOẠN MỐC SOI (X SỐ CUỐI CỦA RANGE) ---
     day_so_recent = day_so_range[-moc_soi_input:]
 
     if len(day_so_range) < 10:
         st.warning("⚠️ Không đủ dữ liệu!")
     else:
-        # TÍNH TOÁN CHO CHẴN LẺ
+        # 1. Tính cho Đoạn Range
         cl_key = lambda x: int(x) % 2 == 0
-        r_c2, r_c3, r_cl = get_stats(day_so_range, cl_key)
-        m_c2, m_c3, m_cl = get_stats(day_so_recent, cl_key)
-        profit_range_cl = calculate_profit(r_c2, r_c3, r_cl)
-        profit_recent_cl = calculate_profit(m_c2, m_c3, m_cl)
-        dd_cl = calculate_max_dd(day_so_range, cl_key)
-
-        # TÍNH TOÁN CHO TO NHỎ
         tn_key = lambda x: int(x) in [3, 4]
-        rt_c2, rt_c3, rt_cl = get_stats(day_so_range, tn_key)
-        mt_c2, mt_c3, mt_cl = get_stats(day_so_recent, tn_key)
-        profit_range_tn = calculate_profit(rt_c2, rt_c3, rt_cl)
-        profit_recent_tn = calculate_profit(mt_c2, mt_c3, mt_cl)
+        
+        # Stats & Profit của đoạn Range
+        r_cl_s = get_stats(day_so_range, cl_key)
+        r_tn_s = get_stats(day_so_range, tn_key)
+        p_range_cl = calculate_profit(*r_cl_s)
+        p_range_tn = calculate_profit(*r_tn_s)
+        dd_cl = calculate_max_dd(day_so_range, cl_key)
         dd_tn = calculate_max_dd(day_so_range, tn_key)
 
-        # HIỂN THỊ KẾT QUẢ TÁCH BIỆT
-        st.header("🏆 BẢNG TÍNH LỢI NHUẬN")
-        
+        # 2. Tính cho Đoạn Mốc Soi (Recent)
+        m_cl_s = get_stats(day_so_recent, cl_key)
+        m_tn_s = get_stats(day_so_recent, tn_key)
+        p_recent_cl = calculate_profit(*m_cl_s)
+        p_recent_tn = calculate_profit(*m_tn_s)
+
+        # --- HIỂN THỊ ---
+        st.header("🏆 KẾT QUẢ SO SÁNH LỢI NHUẬN")
         tab1, tab2 = st.tabs([f"📅 THEO ĐOẠN ({label_range})", f"⚡ THEO MỐC SOI ({moc_soi_input} SỐ CUỐI)"])
 
         with tab1:
+            st.info(f"Dữ liệu đang xét: {len(day_so_range)} số")
             c1, c2 = st.columns(2)
-            c1.metric("Lãi Chẵn/Lẻ", f"{profit_range_cl}%")
-            c2.metric("Lãi To/Nhỏ", f"{profit_range_tn}%")
-            st.info(f"Tổng lợi nhuận cả đoạn: **{profit_range_cl + profit_range_tn}%**")
-            st.warning(f"Thua sâu nhất (DD) của đoạn: -{max(dd_cl, dd_tn)}%")
+            c1.metric("Lãi Chẵn/Lẻ", f"{p_range_cl}%")
+            c2.metric("Lãi To/Nhỏ", f"{p_range_tn}%")
+            st.subheader(f"Tổng lãi đoạn này: {p_range_cl + p_range_tn}%")
+            st.error(f"Thua sâu nhất (DD): -{max(dd_cl, dd_tn)}%")
+            
+            # Show stats chi tiết cho đoạn Range
+            col_a, col_b = st.columns(2)
+            col_a.write(f"Stats CL: {r_cl_s[0]} | {r_cl_s[1]} | {r_cl_s[2]}")
+            col_b.write(f"Stats TN: {r_tn_s[0]} | {r_tn_s[1]} | {r_tn_s[2]}")
 
         with tab2:
+            st.info(f"Dữ liệu đang xét: {len(day_so_recent)} số")
             c1, c2 = st.columns(2)
-            c1.metric("Lãi Chẵn/Lẻ Gần Đây", f"{profit_recent_cl}%")
-            c2.metric("Lãi To/Nhỏ Gần Đây", f"{profit_recent_tn}%")
-            st.success(f"Tổng lợi nhuận mốc soi: **{profit_recent_cl + profit_recent_tn}%**")
+            c1.metric("Lãi Chẵn/Lẻ (Mốc)", f"{p_recent_cl}%", delta=f"{p_recent_cl - p_range_cl}% so với đoạn")
+            c2.metric("Lãi To/Nhỏ (Mốc)", f"{p_recent_tn}%", delta=f"{p_recent_tn - p_range_tn}% so với đoạn")
+            st.success(f"Tổng lãi mốc soi: {p_recent_cl + p_recent_tn}%")
 
         st.markdown("---")
-        # Giữ lại phần chi tiết bên dưới cho ông soi cầu
-        st.subheader("🔍 Chi tiết biến động (Dựa trên mốc soi)")
+        st.subheader("🔍 Chi tiết biến động & Streak (Mốc soi)")
         col_cl, col_tn = st.columns(2)
         with col_cl:
             st.write("**📊 CẦU CHẴN/LẺ**")
-            st.write(f"Stats (2|3|4+): {m_c2} | {m_c3} | {m_cl}")
-            with st.expander("Full Streak Chẵn/Lẻ"):
+            st.write(f"Stats (2|3|4+): {m_cl_s[0]} | {m_cl_s[1]} | {m_cl_s[2]}")
+            with st.expander("Xem Streak"):
                 fs = get_full_streak_stats(day_so_recent, cl_key)
                 for k, v in fs.items(): st.write(f"• Streak {k}: {v}")
         with col_tn:
             st.write("**📊 CẦU TO/NHỎ**")
-            st.write(f"Stats (2|3|4+): {mt_c2} | {mt_c3} | {mt_cl}")
-            with st.expander("Full Streak To/Nhỏ"):
+            st.write(f"Stats (2|3|4+): {m_tn_s[0]} | {m_tn_s[1]} | {m_tn_s[2]}")
+            with st.expander("Xem Streak"):
                 fs = get_full_streak_stats(day_so_recent, tn_key)
                 for k, v in fs.items(): st.write(f"• Streak {k}: {v}")
