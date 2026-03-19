@@ -9,7 +9,7 @@ st.set_page_config(page_title="BOT V36 PRO MAX 🔥", layout="wide")
 st.title("🔥 V36 SYSTEM BEHAVIOR AI")
 st.markdown("---")
 
-# ===== LOGIC PHÂN TÍCH (GIỮ NGUYÊN CỦA ÔNG) =====
+# ===== LOGIC PHÂN TÍCH =====
 def get_stats(day_so, key_func):
     c2, c3, cl = 0, 0, 0
     for _, nhom in groupby(day_so, key=key_func):
@@ -51,25 +51,21 @@ def check_trend(day_so, key_func, name, moc_soi):
     full_streak = get_full_streak_stats(data_sub, key_func)
     
     res = {
-        "name": name,
-        "tong": f"{tc2} | {tc3} | {tcl}",
-        "soi": f"{sc2} | {sc3} | {scl}",
-        "lai": f"{p_sub}%",
-        "lai100": f"{p_100}%",
-        "thua_sau": f"-{max_dd}%",
-        "dubao": signal,
-        "streaks": full_streak
+        "name": name, "tong": f"{tc2} | {tc3} | {tcl}", "soi": f"{sc2} | {sc3} | {scl}",
+        "lai": f"{p_sub}%", "lai100": f"{p_100}%", "thua_sau": f"-{max_dd}%",
+        "dubao": signal, "streaks": full_streak
     }
     return res, p_sub, max_dd
 
 # ===== GIAO DIỆN NHẬP LIỆU TRÊN WEB =====
-col1, col2 = st.columns([1, 1])
+col_input, col_btn = st.columns([1, 1])
 
-with col1:
+with col_input:
     range_input = st.text_input("Range (vd: 0-1000)", placeholder="Để trống nếu lấy hết")
     moc_soi_input = st.number_input("Số lượng soi gần nhất", value=250)
 
-with col2:
+with col_btn:
+    st.write("Thao tác dữ liệu:")
     if st.button("☁️ TẢI DỮ LIỆU TỪ SHEETS", use_container_width=True):
         url = "https://docs.google.com/spreadsheets/d/e/2PACX-1vS5-pPONvbU7PR7FteVtEBvN6EuudQ2rgbV3sHX-Ngy1PALF4nvyTBidXOXXE325_TLKKDJwZB7xFgH/pub?output=csv"
         try:
@@ -78,15 +74,27 @@ with col2:
                 lines = response.text.splitlines()
                 data_list = [l.strip().replace('"', '') for l in lines if l.strip().replace('"', '') in '1234']
                 st.session_state['day_so'] = ''.join(data_list)
-                st.success(f"✅ Đã tải {len(data_list)} số thành công!")
+                st.success(f"✅ Đã tải thành công!")
             else: st.error("❌ Lỗi kết nối Sheets")
         except Exception as e: st.error(f"❌ Lỗi: {e}")
 
-day_so_raw = st.text_area("Dữ liệu hiện tại (Chuỗi số):", value=st.session_state.get('day_so', ''), height=100)
+# Ô nhập liệu dữ liệu thô
+day_so_raw = st.text_area("Dữ liệu chuỗi số:", value=st.session_state.get('day_so', ''), height=100)
+day_so_clean = ''.join(filter(lambda x: x in '1234', day_so_raw))
+
+# --- BỘ ĐẾM DỮ LIỆU (MỚI THÊM) ---
+if day_so_clean:
+    st.subheader("📊 Thống kê dữ liệu nạp")
+    count_cols = st.columns(5)
+    count_cols[0].metric("Tổng số", len(day_so_clean))
+    count_cols[1].metric("Số 1", day_so_clean.count('1'))
+    count_cols[2].metric("Số 2", day_so_clean.count('2'))
+    count_cols[3].metric("Số 3", day_so_clean.count('3'))
+    count_cols[4].metric("Số 4", day_so_clean.count('4'))
+    st.markdown("---")
 
 if st.button("🚀 BẮT ĐẦU PHÂN TÍCH", type="primary", use_container_width=True):
-    day_so = ''.join(filter(lambda x: x in '1234', day_so_raw))
-    
+    day_so = day_so_clean
     if range_input and "-" in range_input:
         try:
             start, end = map(int, range_input.split("-"))
@@ -94,12 +102,11 @@ if st.button("🚀 BẮT ĐẦU PHÂN TÍCH", type="primary", use_container_widt
         except: pass
 
     if len(day_so) < 20:
-        st.warning("⚠️ Không đủ dữ liệu để phân tích!")
+        st.warning("⚠️ Không đủ dữ liệu!")
     else:
         res_cl, p_cl, dd_cl = check_trend(day_so, lambda x: int(x) % 2 == 0, "CHẴN/LẺ", moc_soi_input)
         res_tn, p_tn, dd_tn = check_trend(day_so, lambda x: int(x) in [3, 4], "TO/NHỎ", moc_soi_input)
 
-        # Hiển thị kết quả dạng bảng/card cho đẹp
         c1, c2 = st.columns(2)
         for r, col in zip([res_cl, res_tn], [c1, c2]):
             with col:
@@ -107,7 +114,6 @@ if st.button("🚀 BẮT ĐẦU PHÂN TÍCH", type="primary", use_container_widt
                 st.write(f"Tổng (2|3|4+): **{r['tong']}**")
                 st.write(f"Soi {moc_soi_input}: **{r['soi']}**")
                 st.write(f"Lợi nhuận: {r['lai']}")
-                st.write(f"Lãi 100 gần nhất: {r['lai100']}")
                 st.error(f"THUA SÂU: {r['thua_sau']}")
                 st.info(f"DỰ BÁO: {r['dubao']}")
                 with st.expander("Xem Full Streak"):
